@@ -118,6 +118,20 @@ defmodule Ueberauth.Strategy.VK do
     end
   end
 
+  @doc """
+  Handles the callback from app with access_token.
+  """
+  def handle_callback!(%Plug.Conn{params: %{"access_token" => access_token}} = conn) do
+    client = OAuth.client
+    token = OAuth2.AccessToken.new(access_token)
+
+    if check_access_token(conn, client, token) do
+      fetch_user(conn, %{client | token: token})
+    else
+      set_errors!(conn, [error("token", "Token verification failed")])
+    end
+  end
+
   @doc false
   def handle_callback!(conn) do
     set_errors!(conn, [error("missing_code", "No code received")])
@@ -282,6 +296,23 @@ defmodule Ueberauth.Strategy.VK do
       params
     else
       Map.put(params, name, option(params[name], conn, config_key))
+    end
+  end
+
+  def check_access_token(conn, client, token) do
+    config = Application.get_env(:ueberauth, OAuth)
+    query = URI.encode_query(%{
+      "token" => token.access_token,
+      "access_token" => config[:client_service_key]
+    })
+    path = "/secure.checkToken?#{query}"
+    case OAuth2.Client.get(client, path) do
+      {:ok, %OAuth2.Response{
+        status_code: 200,
+        body: %{"data" => %{"success" => 1}}
+      }} -> true
+      _ -> false
+
     end
   end
 end
