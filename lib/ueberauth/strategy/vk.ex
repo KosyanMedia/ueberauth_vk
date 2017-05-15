@@ -301,18 +301,16 @@ defmodule Ueberauth.Strategy.VK do
 
   def check_access_token(conn, client, token) do
     config = Application.get_env(:ueberauth, OAuth)
-    query = URI.encode_query(%{
+    params = %{
       "token" => token.access_token,
       "access_token" => config[:client_service_key]
-    })
-    path = "/secure.checkToken?#{query}"
-    case OAuth2.Client.get(client, path) do
+    }
+    case OAuth2.Client.get(client, "/secure.checkToken", [], params: params) do
       {:ok, %OAuth2.Response{
         status_code: 200,
-        body: %{"data" => %{"success" => 1}}
+        body: %{"response" => %{"success" => 1}}
       }} -> true
       _ -> false
-
     end
   end
 end
