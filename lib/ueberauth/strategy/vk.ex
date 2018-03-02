@@ -10,7 +10,8 @@ defmodule Ueberauth.Strategy.VK do
                           allowed_request_params: [
                             :display,
                             :scope
-                          ]
+                          ],
+                          api_version: "3.0"
 
   alias OAuth2.{Response, Error, Client}
   alias Ueberauth.Auth.{Info, Credentials, Extra}
@@ -182,6 +183,7 @@ defmodule Ueberauth.Strategy.VK do
       |> Map.merge(query_params(conn, :profile))
       |> Map.merge(query_params(conn, :user_id))
       |> Map.merge(query_params(conn, :access_token))
+      |> Map.merge(query_params(conn, :api_version))
       |> URI.encode_query
     "https://api.vk.com/method/users.get?#{query}"
   end
@@ -196,6 +198,12 @@ defmodule Ueberauth.Strategy.VK do
     case option(conn, :locale) do
       nil -> %{}
       locale -> %{"lang" => locale}
+    end
+  end
+  defp query_params(conn, :api_version) do
+    case option(conn, :api_version) do
+      nil -> %{}
+      api_version -> %{"v" => api_version}
     end
   end
   defp query_params(conn, :user_id) do
