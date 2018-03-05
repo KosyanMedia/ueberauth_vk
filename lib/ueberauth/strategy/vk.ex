@@ -235,7 +235,8 @@ defmodule Ueberauth.Strategy.VK do
     config = Application.get_env(:ueberauth, OAuth)
     params = %{
       "token" => token.access_token,
-      "access_token" => config[:client_service_key]
+      "access_token" => config[:client_service_key],
+      "v" => option(conn, :api_version)
     }
     case OAuth2.Client.get(client, "/secure.checkToken", [], params: params) do
       {:ok, %OAuth2.Response{
