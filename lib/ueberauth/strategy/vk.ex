@@ -6,12 +6,12 @@ defmodule Ueberauth.Strategy.VK do
   use Ueberauth.Strategy, default_scope: "",
                           default_display: "page",
                           profile_fields: "",
-                          uid_field: :uid,
+                          uid_field: :id,
                           allowed_request_params: [
                             :display,
                             :scope
                           ],
-                          api_version: "3.0"
+                          api_version: "5.0"
 
   alias OAuth2.{Response, Error, Client}
   alias Ueberauth.Auth.{Info, Credentials, Extra}
@@ -35,6 +35,7 @@ defmodule Ueberauth.Strategy.VK do
       |> Enum.map(fn {k, v} -> {String.to_existing_atom(k), v} end)
       |> Keyword.put(:redirect_uri, callback_url(conn))
       |> OAuth.authorize_url!
+
 
     redirect!(conn, authorize_url)
   end
@@ -128,7 +129,7 @@ defmodule Ueberauth.Strategy.VK do
       location: user["city"],
       description: user["about"],
       urls: %{
-        vk: "https://vk.com/id" <> to_string(user["uid"])
+        vk: "https://vk.com/id" <> to_string(user["id"])
       }
     }
   end
