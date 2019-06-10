@@ -126,6 +126,7 @@ defmodule Ueberauth.Strategy.VK do
     token = OAuth2.AccessToken.new(access_token)
 
     if check_access_token(conn, client, token) do
+      # FIXME need to call with third argument - state
       fetch_user(conn, %{client | token: token})
     else
       set_errors!(conn, [error("token", "Token verification failed")])
