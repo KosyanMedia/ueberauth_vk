@@ -175,7 +175,14 @@ defmodule Ueberauth.Strategy.VK do
         set_errors!(conn, [error("token", "unauthorized")])
       {:ok, %Response{status_code: status_code, body: user}}
         when status_code in 200..399 ->
-          put_private(conn, :vk_user, List.first(user["response"]))
+          users = user["response"]
+          if users do
+            put_private(conn, :vk_user, List.first(users))
+          else
+            code = user["error"]["error_code"]
+            msg = user["error"]["error_msg"]
+            set_errors!(conn, [error("OAuth request error", "code: #{code}; msg: #{msg}")])
+          end
       {:error, %Error{reason: reason}} ->
         set_errors!(conn, [error("OAuth2", reason)])
     end
