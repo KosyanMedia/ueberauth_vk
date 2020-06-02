@@ -66,7 +66,7 @@ defmodule Ueberauth.Strategy.VK do
                           default_display: "page",
                           default_state: "",
                           profile_fields: "",
-                          uid_field: :uid,
+                          uid_field: :id,
                           allowed_request_params: [
                             :display,
                             :scope,
@@ -195,7 +195,7 @@ defmodule Ueberauth.Strategy.VK do
       location: user["city"],
       description: user["about"],
       urls: %{
-        vk: "https://vk.com/id" <> to_string(user["uid"])
+        vk: "https://vk.com/id" <> to_string(user["id"])
       }
     }
   end
