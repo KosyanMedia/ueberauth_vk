@@ -11,7 +11,7 @@ defmodule Ueberauth.Strategy.VK do
                             :display,
                             :scope
                           ],
-                          api_version: "5.21"
+                          api_version: "5.122"
 
   alias OAuth2.{Response, Error, Client}
   alias Ueberauth.Auth.{Info, Credentials, Extra}
