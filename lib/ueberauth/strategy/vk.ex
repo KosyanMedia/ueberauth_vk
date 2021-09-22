@@ -97,6 +97,7 @@ defmodule Ueberauth.Strategy.VK do
       |> Keyword.put(:redirect_uri, callback_url(conn))
       |> OAuth.authorize_url!
 
+
     redirect!(conn, authorize_url)
   end
 
@@ -131,6 +132,24 @@ defmodule Ueberauth.Strategy.VK do
       token = Map.put(token, :other_params, other_params)
       put_private(conn, :vk_token, token)
       # FIXME need to call with third argument - state
+      fetch_user(conn, %{client | token: token})
+    else
+      set_errors!(conn, [error("token", "Token verification failed")])
+    end
+  end
+
+  @doc """
+  Handles the callback from app with access_token.
+  """
+  def handle_callback!(%Plug.Conn{params: %{"access_token" => access_token}} = conn) do
+    client = OAuth.client
+    token = OAuth2.AccessToken.new(access_token)
+    verified_token = check_access_token(conn, client, token)
+
+    if verified_token do
+      other_params = Map.put(token.other_params, "user_id", verified_token["user_id"])
+      token = Map.put(token, :other_params, other_params)
+      put_private(conn, :vk_token, token)
       fetch_user(conn, %{client | token: token})
     else
       set_errors!(conn, [error("token", "Token verification failed")])
@@ -316,7 +335,7 @@ defmodule Ueberauth.Strategy.VK do
     params = %{
       "token" => token.access_token,
       "access_token" => config[:client_service_key],
-      "v" => option(conn, :api_version)
+      "v" => option(conn, :version)
     }
     case OAuth2.Client.get(client, "/secure.checkToken", [], params: params) do
       {:ok, %OAuth2.Response{
