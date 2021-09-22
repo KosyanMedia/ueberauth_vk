@@ -1,17 +1,77 @@
 defmodule Ueberauth.Strategy.VK do
   @moduledoc """
   VK Strategy for Überauth.
+
+  ### Setup
+
+  Create an VK application for you to use.
+
+  Register a new application at: [VK devs](https://vk.com/dev) and get the `client_id` and `client_secret`.
+
+  Include the provider in your configuration for Ueberauth
+
+      config :ueberauth, Ueberauth,
+        providers: [
+          vk: { Ueberauth.Strategy.VK, [] }
+        ]
+
+  Then include the configuration for github.
+
+      config :ueberauth, Ueberauth.Strategy.VK.OAuth,
+        client_id: System.get_env("VK_CLIENT_ID"),
+        client_secret: System.get_env("VK_CLIENT_SECRET"),
+
+  If you haven't already, create a pipeline and setup routes for your callback handler
+
+      pipeline :auth do
+        Ueberauth.plug "/auth"
+      end
+      scope "/auth" do
+        pipe_through [:browser, :auth]
+        get "/:provider/callback", AuthController, :callback
+      end
+
+  Create an endpoint for the callback where you will handle the `Ueberauth.Auth` struct
+
+      defmodule MyApp.AuthController do
+        use MyApp.Web, :controller
+
+        def callback_phase(%{ assigns: %{ ueberauth_failure: fails } } = conn, _params) do
+          # do things with the failure
+        end
+        def callback_phase(%{ assigns: %{ ueberauth_auth: auth } } = conn, params) do
+          # do things with the auth
+        end
+      end
+
+  You can edit the behaviour of the Strategy by including some options when you register your provider.
+
+  You can customize [multiple fields](https://vk.com/dev/auth_sites), such as `default_scope`, `default_display`, `default_state`, `profile_fields`, `uid_field`
+
+      config :ueberauth, Ueberauth,
+        providers: [
+          vk: { Ueberauth.Strategy.VK, [
+            default_scope: "email,friends,video,offline",
+            default_display: "popup",
+            default_state: "secret-state-value",
+            uid_field: :email
+          ] }
+        ]
+
+  Default is empty ("") which "Grants read-only access to public information (includes public user profile info, public repository info, and gists)"
+
   """
 
   use Ueberauth.Strategy, default_scope: "",
                           default_display: "page",
+                          default_state: "",
                           profile_fields: "",
                           uid_field: :id,
                           allowed_request_params: [
                             :display,
-                            :scope
-                          ],
-                          api_version: "5.122"
+                            :scope,
+                            :state
+                          ]
 
   alias OAuth2.{Response, Error, Client}
   alias Ueberauth.Auth.{Info, Credentials, Extra}
@@ -31,6 +91,7 @@ defmodule Ueberauth.Strategy.VK do
       |> maybe_replace_param(conn, "auth_type", :auth_type)
       |> maybe_replace_param(conn, "scope", :default_scope)
       |> maybe_replace_param(conn, "display", :default_display)
+      |> maybe_replace_param(conn, "state", :default_state)
       |> Enum.filter(fn {k, _} -> Enum.member?(allowed_params, k) end)
       |> Enum.map(fn {k, v} -> {String.to_existing_atom(k), v} end)
       |> Keyword.put(:redirect_uri, callback_url(conn))
@@ -43,7 +104,8 @@ defmodule Ueberauth.Strategy.VK do
   @doc """
   Handles the callback from VK.
   """
-  def handle_callback!(%Plug.Conn{params: %{"code" => code}} = conn) do
+  def handle_callback!(%Plug.Conn{params: %{"code" => _}} = conn) do
+    {code, state} = parse_params(conn)
     opts = [redirect_uri: callback_url(conn)]
     client = OAuth.get_token!([code: code], opts)
     token = client.token
@@ -53,7 +115,26 @@ defmodule Ueberauth.Strategy.VK do
       desc = token.other_params["error_description"]
       set_errors!(conn, [error(err, desc)])
     else
-      fetch_user(conn, client)
+      fetch_user(conn, client, state)
+    end
+  end
+
+  @doc """
+  Handles the callback from app with access_token.
+  """
+  def handle_callback!(%Plug.Conn{params: %{"access_token" => access_token}} = conn) do
+    client = OAuth.client
+    token = OAuth2.AccessToken.new(access_token)
+    verified_token = check_access_token(conn, client, token)
+
+    if verified_token do
+      other_params = Map.put(token.other_params, "user_id", verified_token["user_id"])
+      token = Map.put(token, :other_params, other_params)
+      put_private(conn, :vk_token, token)
+      # FIXME need to call with third argument - state
+      fetch_user(conn, %{client | token: token})
+    else
+      set_errors!(conn, [error("token", "Token verification failed")])
     end
   end
 
@@ -151,6 +232,13 @@ defmodule Ueberauth.Strategy.VK do
     }
   end
 
+  defp parse_params(%Plug.Conn{params: %{"code" => code, "state" => state}}) do
+    {code, state}
+  end
+  defp parse_params(%Plug.Conn{params: %{"code" => code}}) do
+    {code, nil}
+  end
+
   defp fetch_name(user), do: user["first_name"] <> " " <> user["last_name"]
 
   defp fetch_image(user) do
@@ -166,8 +254,10 @@ defmodule Ueberauth.Strategy.VK do
     end
   end
 
-  defp fetch_user(conn, client) do
-    conn = put_private(conn, :vk_token, client.token)
+  defp fetch_user(conn, client, state) do
+    conn = conn
+    |> put_private(:vk_token, client.token)
+    |> put_private(:vk_state, state)
     path = user_query(conn)
 
     case Client.get(client, path) do
@@ -195,7 +285,7 @@ defmodule Ueberauth.Strategy.VK do
       |> Map.merge(query_params(conn, :profile))
       |> Map.merge(query_params(conn, :user_id))
       |> Map.merge(query_params(conn, :access_token))
-      |> Map.merge(query_params(conn, :api_version))
+      |> Map.merge(query_params(conn, :version))
       |> URI.encode_query
     "https://api.vk.com/method/users.get?#{query}"
   end
@@ -212,17 +302,14 @@ defmodule Ueberauth.Strategy.VK do
       locale -> %{"lang" => locale}
     end
   end
-  defp query_params(conn, :api_version) do
-    case option(conn, :api_version) do
-      nil -> %{}
-      api_version -> %{"v" => api_version}
-    end
-  end
   defp query_params(conn, :user_id) do
     %{"user_ids" => conn.private.vk_token.other_params["user_id"]}
   end
   defp query_params(conn, :access_token) do
     %{"access_token" => conn.private.vk_token.access_token}
+  end
+  defp query_params(conn, :version) do
+    %{"v" => "5.8"}
   end
 
   defp option(conn, key) do
@@ -248,7 +335,7 @@ defmodule Ueberauth.Strategy.VK do
     params = %{
       "token" => token.access_token,
       "access_token" => config[:client_service_key],
-      "v" => option(conn, :api_version)
+      "v" => option(conn, :version)
     }
     case OAuth2.Client.get(client, "/secure.checkToken", [], params: params) do
       {:ok, %OAuth2.Response{
