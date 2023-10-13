@@ -10,7 +10,7 @@ defmodule UeberauthVK.Mixfile do
       version: @version,
       name: "Ueberauth VK Strategy",
       package: package(),
-      elixir: "~> 1.4",
+      elixir: "~> 1.11",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       source_url: @url,
@@ -40,8 +40,8 @@ defmodule UeberauthVK.Mixfile do
   defp deps do
     [
       # Auth:
-      {:ueberauth, "~> 0.4"},
-      {:oauth2, "~> 0.9"},
+      {:oauth2, "~> 1.0 or ~> 2.0"},
+      {:ueberauth, "~> 0.10.0"},
 
       # Tests:
       {:exvcr, "~> 0.10", only: :test},
