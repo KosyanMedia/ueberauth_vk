@@ -17,31 +17,30 @@ defmodule Ueberauth.Strategy.VKTest do
 
   # Setups:
   setup_all do
-    # Set the custom location for the cassettes:
-    ExVCR.Config.cassette_library_dir("test/fixtures/cassettes")
-
+    # Creating token:
     token = %{other_params: %{"email" => @test_email}}
 
     # Read the fixture with the user information:
     {:ok, json} =
       "test/fixtures/vk.json"
-      |> Path.expand
-      |> File.read
+      |> Path.expand()
+      |> File.read()
 
     user_info = Poison.decode!(json)
 
     {:ok, response} =
       "test/fixtures/vk_response.html"
-      |> Path.expand
-      |> File.read
+      |> Path.expand()
+      |> File.read()
 
     response = String.replace(response, "\n", "")
 
-    {:ok, %{
-      user_info: user_info,
-      token: token,
-      response: response,
-    }}
+    {:ok,
+     %{
+       user_info: user_info,
+       token: token,
+       response: response
+     }}
   end
 
   # Tests:
@@ -56,7 +55,7 @@ defmodule Ueberauth.Strategy.VKTest do
   end
 
   test "default callback phase" do
-    query = %{code: "code_abc"} |> URI.encode_query
+    query = %{code: "code_abc"} |> URI.encode_query()
 
     use_cassette "httpoison_get" do
       conn =
@@ -70,7 +69,26 @@ defmodule Ueberauth.Strategy.VKTest do
 
       assert auth.provider == :vk
       assert auth.strategy == Ueberauth.Strategy.VK
-      assert auth.uid == 210700286
+      assert auth.uid == 210_700_286
+    end
+  end
+
+  test "callback phase with state" do
+    query = %{code: "code_abc", state: "abc"} |> URI.encode_query()
+
+    use_cassette "httpoison_get" do
+      conn =
+        :get
+        |> conn("/auth/vk/callback?#{query}")
+        |> SpecRouter.call(@router)
+
+      assert conn.resp_body == "vk callback"
+
+      auth = conn.assigns.ueberauth_auth
+
+      assert auth.provider == :vk
+      assert auth.strategy == Ueberauth.Strategy.VK
+      assert auth.uid == 210_700_286
     end
   end
 
@@ -81,22 +99,22 @@ defmodule Ueberauth.Strategy.VKTest do
     conn = %Plug.Conn{
       private: %{
         vk_user: user_info,
-        vk_token: token,
+        vk_token: token
       }
     }
 
     assert info(conn) == %Info{
-      email: @test_email,
-      name: "Lindsey Stirling",
-      first_name: "Lindsey",
-      last_name: "Stirling",
-      nickname: nil,
-      location: 5331,
-      description: "some info",
-      image: "100.jpg",
-      urls: %{
-        vk: "https://vk.com/id210700286"
-      }
-    }
+             email: @test_email,
+             name: "Lindsey Stirling",
+             first_name: "Lindsey",
+             last_name: "Stirling",
+             nickname: nil,
+             location: 5331,
+             description: "some info",
+             image: "100.jpg",
+             urls: %{
+               vk: "https://vk.com/id210700286"
+             }
+           }
   end
 end

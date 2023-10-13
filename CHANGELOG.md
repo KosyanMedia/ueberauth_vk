@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.4.0
+
+* Fixes VK API version
+
+## v0.3.1
+
+* Fixes docs generation
+
+## v0.3.0
+
+* Updates requirements versions
+* Fixes failing tests
+
+## v0.2.4
+
+* Fixes `state` issue, see https://github.com/sobolevn/ueberauth_vk/issues/21
+
+## v0.2.3
+
+* Adds `state` parameter
+
 ## v0.2.2
 
 * Fixed `ex_doc` version
