@@ -11,7 +11,8 @@ defmodule Ueberauth.Strategy.VK do
                             :display,
                             :scope
                           ],
-                          api_version: "5.122"
+                          api_version: "5.122",
+                          ignores_csrf_attack: true # to support ueberauth v0.10 in guestia
 
   alias OAuth2.{Response, Error, Client}
   alias Ueberauth.Auth.{Info, Credentials, Extra}
