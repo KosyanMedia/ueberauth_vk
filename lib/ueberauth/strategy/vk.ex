@@ -11,7 +11,8 @@ defmodule Ueberauth.Strategy.VK do
                             :display,
                             :scope
                           ],
-                          api_version: "5.122"
+                          api_version: "5.122",
+                          profile_url_base: "https://vk.ru/id"
 
   alias OAuth2.{Response, Error, Client}
   alias Ueberauth.Auth.{Info, Credentials, Extra}
@@ -123,6 +124,7 @@ defmodule Ueberauth.Strategy.VK do
   def info(conn) do
     token = conn.private.vk_token
     user = conn.private.vk_user
+    profile_url_base = option(conn, :profile_url_base)
 
     %Info{
       first_name: user["first_name"],
@@ -133,7 +135,7 @@ defmodule Ueberauth.Strategy.VK do
       location: user["city"],
       description: user["about"],
       urls: %{
-        vk: "https://vk.com/id" <> to_string(user["id"])
+        vk: profile_url_base <> to_string(user["id"])
       }
     }
   end
@@ -197,7 +199,7 @@ defmodule Ueberauth.Strategy.VK do
       |> Map.merge(query_params(conn, :access_token))
       |> Map.merge(query_params(conn, :api_version))
       |> URI.encode_query
-    "https://api.vk.com/method/users.get?#{query}"
+    "/users.get?#{query}"
   end
 
   defp query_params(conn, :profile) do

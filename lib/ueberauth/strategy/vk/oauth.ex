@@ -15,9 +15,9 @@ defmodule Ueberauth.Strategy.VK.OAuth do
 
   @defaults [
     strategy: __MODULE__,
-    site: "https://api.vk.com/method",
-    authorize_url: "https://oauth.vk.com/authorize",
-    token_url: "https://oauth.vk.com/access_token",
+    site: "https://api.vk.ru/method",
+    authorize_url: "https://oauth.vk.ru/authorize",
+    token_url: "https://oauth.vk.ru/access_token",
   ]
 
   @doc """
